@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "crypto_client.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    command: ["celery", "-A", "crypto_client.worker.celery_app:app", "worker", "-l", "info"]
+    depends_on:
+      - redis
+
+  beat:
+    build: .
+    env_file:
+      - .env
+    command: ["celery", "-A", "crypto_client.worker.celery_app:app", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule"]
+    depends_on:
+      - redis
+
