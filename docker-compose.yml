@@ -37,4 +37,3 @@ services:
     command: ["celery", "-A", "crypto_client.worker.celery_app:app", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule"]
     depends_on:
       - redis
-

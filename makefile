@@ -1,7 +1,10 @@
-.PHONY: build server lint test test-cov
+.PHONY: build run server lint test test-cov
 
 build:
 	docker compose up --build
+
+run:
+	docker compose up
 
 server:
 	fastapi dev src/crypto_client/api/api.py

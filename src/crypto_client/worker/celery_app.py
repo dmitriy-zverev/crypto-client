@@ -1,16 +1,14 @@
-import os
-
 from celery import Celery
+from celery.schedules import crontab
+
+from crypto_client.core.config import settings
 
 
 def make_celery_app() -> Celery:
-    broker_url = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-    backend_url = os.getenv("CELERY_RESULT_BACKEND", broker_url)
-
     app = Celery(
         "crypto_client",
-        broker=broker_url,
-        backend=backend_url,
+        broker=settings.celery_broker_url,
+        backend=settings.celery_result_backend,
         include=["crypto_client.worker.tasks"],
     )
 
@@ -20,8 +18,10 @@ def make_celery_app() -> Celery:
 app = make_celery_app()
 
 app.conf.beat_schedule = {
-    "health-every-60-seconds": {
-        "task": "debug.health",
-        "schedule": 60.0,
+    "fetch-indexes": {
+        "task": "client.fetch_indexes",
+        "schedule": settings.request_frequency
+        if settings.request_frequency > 0
+        else crontab(),
     },
 }
