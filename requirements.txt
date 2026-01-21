@@ -8,3 +8,5 @@ alembic
 requests
 pydantic
 pydantic-settings
+pytest
+httpx

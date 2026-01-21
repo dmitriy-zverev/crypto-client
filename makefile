@@ -1,6 +1,6 @@
-.PHONY: build run server lint test test-cov
+.PHONY: build-run run server lint test test-cov
 
-build:
+build-run:
 	docker compose up --build
 
 run:

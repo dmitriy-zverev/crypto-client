@@ -22,7 +22,13 @@ def get_all_prices(
 ) -> list[PriceTick]:
     t = normalize_ticker(ticker)
 
-    stmt = select(PriceTick).where(PriceTick.ticker == t).order_by(desc(PriceTick.ts)).limit(limit).offset(offset)
+    stmt = (
+        select(PriceTick)
+        .where(PriceTick.ticker == t)
+        .order_by(desc(PriceTick.ts))
+        .limit(limit)
+        .offset(offset)
+    )
     rows = db.execute(stmt).scalars().all()
     return rows
 
@@ -34,7 +40,12 @@ def get_latest_price(
 ) -> PriceTick:
     t = normalize_ticker(ticker)
 
-    stmt = select(PriceTick).where(PriceTick.ticker == t).order_by(desc(PriceTick.ts)).limit(1)
+    stmt = (
+        select(PriceTick)
+        .where(PriceTick.ticker == t)
+        .order_by(desc(PriceTick.ts))
+        .limit(1)
+    )
     row = db.execute(stmt).scalars().first()
     if row is None:
         raise HTTPException(status_code=404, detail="No data for this ticker yet")
