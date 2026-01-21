@@ -26,4 +26,4 @@ def fetch_indexes(self) -> dict:
         except PermanentDeribitError:
             raise
 
-    return {"attempt": self.request.retries, "ts": ts, "prices": prices}
+    return {"ts": ts, "prices": prices}

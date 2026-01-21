@@ -21,6 +21,8 @@ services:
     depends_on:
       - db
       - redis
+    volumes:
+      - .:/app
 
   worker:
     build: .
@@ -29,6 +31,8 @@ services:
     command: ["celery", "-A", "crypto_client.worker.celery_app:app", "worker", "-l", "info"]
     depends_on:
       - redis
+    volumes:
+      - .:/app
 
   beat:
     build: .
@@ -37,3 +41,5 @@ services:
     command: ["celery", "-A", "crypto_client.worker.celery_app:app", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule"]
     depends_on:
       - redis
+    volumes:
+      - .:/app
