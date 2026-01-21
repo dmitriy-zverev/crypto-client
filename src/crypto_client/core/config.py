@@ -56,13 +56,9 @@ class Settings(BaseSettings):
     )
 
     # HTTP client behavior
-    http_timeout_seconds: float = Field(
-        default=5.0, validation_alias="HTTP_TIMEOUT_SECONDS"
-    )
+    http_timeout_seconds: float = Field(default=5.0, validation_alias="HTTP_TIMEOUT_SECONDS")
     http_max_retries: int = Field(default=3, validation_alias="HTTP_MAX_RETRIES")
-    http_backoff_seconds: float = Field(
-        default=0.2, validation_alias="HTTP_BACKOFF_SECONDS"
-    )
+    http_backoff_seconds: float = Field(default=0.2, validation_alias="HTTP_BACKOFF_SECONDS")
     pool_connections: int = Field(default=10, validation_alias="POOL_CONNECTIONS")
     pool_maxsize: int = Field(default=10, validation_alias="POOL_MAXSIZE")
     lru_maxsize: int = Field(default=1, validation_alias="LRU_MAXSIZE")
@@ -104,13 +100,6 @@ class Settings(BaseSettings):
     @field_validator("http_max_retries")
     @classmethod
     def non_negative_retries(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("HTTP_MAX_RETRIES must be >= 0")
-        return v
-
-    @field_validator("request_frequency")
-    @classmethod
-    def non_negative_request_frequency(cls, v: int) -> int:
         if v < 0:
             raise ValueError("HTTP_MAX_RETRIES must be >= 0")
         return v

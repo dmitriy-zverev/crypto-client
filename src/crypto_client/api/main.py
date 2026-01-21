@@ -1,8 +1,10 @@
 import logging
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from sqlalchemy import text
 
+from crypto_client.api.deps import get_db
 from crypto_client.api.routes import router
 from crypto_client.core.logging import setup_logging
 
@@ -31,7 +33,11 @@ def create_app() -> FastAPI:
         return response
 
     @app.get("/health")
-    def health() -> dict:
+    def health(db=Depends(get_db)) -> dict:
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception:
+            raise HTTPException(status_code=503, detail="db unavailable")
         return {"status": "ok"}
 
     return app
