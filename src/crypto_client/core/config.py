@@ -54,11 +54,6 @@ class Settings(BaseSettings):
         validation_alias="TICKERS",
         description="Comma-separated list in env, e.g. 'btc_usd,eth_usd'",
     )
-    request_frequency: int = Field(
-        default=0,
-        validation_alias="REQUEST_FREQUENCY",
-        description="Frequency between requests",
-    )
 
     # HTTP client behavior
     http_timeout_seconds: float = Field(
