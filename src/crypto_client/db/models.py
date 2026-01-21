@@ -11,6 +11,8 @@ class PriceTick(Base):
     ticker: Mapped[str] = mapped_column(String(32), nullable=False)
     price: Mapped[float] = mapped_column(Numeric(20, 8), nullable=False)
     ts: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     __table_args__ = (Index("ix_price_ticks_ticker_ts", "ticker", "ts"),)

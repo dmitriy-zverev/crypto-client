@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from requests.exceptions import ConnectionError, HTTPError, RequestException, SSLError, Timeout
+from requests.exceptions import (
+    ConnectionError,
+    HTTPError,
+    RequestException,
+    SSLError,
+    Timeout,
+)
 
 from crypto_client.clients.errors import PermanentDeribitError, TransientDeribitError
 from crypto_client.core.config import settings
