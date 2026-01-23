@@ -129,41 +129,85 @@ func main() {
 		fmt.Fprintf(w, "crypto_client_ticks_freshness_seconds %d\n", overallFreshness)
 
 		if dbUp == 1 {
-			for _, t := range tickers {
-				var lastTs int64 = 0
-				row := pool.QueryRow(ctx, "SELECT COALESCE(MAX(ts), 0) FROM price_ticks WHERE ticker=$1;", t)
-				if err := row.Scan(&lastTs); err != nil {
-					log.Printf("failed to query last ts for ticker=%s: %v", t, err)
-					continue
+			fromTs := now - windowSeconds
+
+			query := `
+			WITH wanted AS (
+				SELECT unnest($1::text[]) AS ticker
+			)
+			SELECT
+				w.ticker,
+				COALESCE(MAX(p.ts), 0) AS last_ts,
+				COUNT(p.*) FILTER (WHERE p.ts >= $2) AS cnt_window
+			FROM wanted w
+			LEFT JOIN price_ticks p ON p.ticker = w.ticker
+			GROUP BY w.ticker
+			ORDER BY w.ticker;
+			`
+
+			rows, err := pool.Query(ctx, query, tickers, fromTs)
+			if err != nil {
+				log.Printf("failed to query ticker stats: %v", err)
+			} else {
+				defer rows.Close()
+
+				type stat struct {
+					lastTs int64
+					cnt    int64
+				}
+				stats := make(map[string]stat, len(tickers))
+
+				for rows.Next() {
+					var t string
+					var lastTs int64
+					var cnt int64
+
+					if err := rows.Scan(&t, &lastTs, &cnt); err != nil {
+						log.Printf("failed to scan ticker stats row: %v", err)
+						continue
+					}
+					stats[t] = stat{lastTs: lastTs, cnt: cnt}
 				}
 
-				freshness := int64(0)
-				if lastTs > 0 {
-					freshness = now - lastTs
+				if err := rows.Err(); err != nil {
+					log.Printf("rows error: %v", err)
 				}
 
-				fmt.Fprintf(w, "crypto_client_last_tick_ts{ticker=%q} %d\n", t, lastTs)
-				fmt.Fprintf(w, "crypto_client_ticks_freshness_seconds{ticker=%q} %d\n", t, freshness)
+				var lastOverall int64 = 0
+				for _, t := range tickers {
+					s, ok := stats[t]
+					if !ok {
+						s = stat{lastTs: 0, cnt: 0}
+					}
 
-				var cnt int64 = 0
-				fromTs := now - windowSeconds
+					if s.lastTs > lastOverall {
+						lastOverall = s.lastTs
+					}
 
-				row2 := pool.QueryRow(ctx,
-					"SELECT COUNT(*) FROM price_ticks WHERE ticker=$1 AND ts >= $2;",
-					t, fromTs,
-				)
-				if err := row2.Scan(&cnt); err != nil {
-					log.Printf("failed to query count for ticker=%s: %v", t, err)
-				} else {
+					freshness := int64(0)
+					if s.lastTs > 0 {
+						freshness = now - s.lastTs
+					}
+
+					fmt.Fprintf(w, "crypto_client_last_tick_ts{ticker=%q} %d\n", t, s.lastTs)
+					fmt.Fprintf(w, "crypto_client_ticks_freshness_seconds{ticker=%q} %d\n", t, freshness)
 					fmt.Fprintf(
 						w,
 						"crypto_client_ticks_last_window_total{ticker=%q,window_seconds=%q} %d\n",
 						t,
 						fmt.Sprintf("%d", windowSeconds),
-						cnt,
+						s.cnt,
 					)
 				}
+
+				overallFreshness := int64(0)
+				if lastOverall > 0 {
+					overallFreshness = now - lastOverall
+				}
+				fmt.Fprintf(w, "crypto_client_last_tick_ts %d\n", lastOverall)
+				fmt.Fprintf(w, "crypto_client_ticks_freshness_seconds %d\n", overallFreshness)
 			}
+
 		}
 	})
 
