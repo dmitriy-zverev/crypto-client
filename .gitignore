@@ -209,3 +209,9 @@ __marimo__/
 # Other
 test-task.md
 uv.lock
+
+# backups
+backups/
+*.dump
+*.sql
+*.tar
