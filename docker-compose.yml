@@ -43,3 +43,17 @@ services:
       - redis
     volumes:
       - .:/app
+  metrics:
+    build:
+      context: ./go-metrics
+    ports:
+      - "9100:9100"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://app:app@db:5432/crypto?sslmode=disable
+      - TICKERS=${TICKERS}
+      - WINDOW_SECONDS=300
+    depends_on:
+      - db
+    restart: unless-stopped
