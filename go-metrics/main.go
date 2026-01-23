@@ -7,8 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -113,6 +115,27 @@ func fetchTickerStats(
 	return stats, lastOverall, nil
 }
 
+func waitForDB(ctx context.Context, pool *pgxpool.Pool, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		err := pool.Ping(pingCtx)
+		cancel()
+
+		if err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -135,6 +158,15 @@ func main() {
 		log.Fatalf("failed to create pg pool: %v", err)
 	}
 	defer pool.Close()
+
+	startupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	log.Printf("waiting for db...")
+	if err := waitForDB(startupCtx, pool, 500*time.Millisecond); err != nil {
+		log.Fatalf("db is not ready: %v", err)
+	}
+	log.Printf("db is ready")
 
 	log.Printf("tickers=%v", tickers)
 
@@ -278,8 +310,40 @@ func main() {
 	})
 
 	addr := ":9100"
-	log.Printf("metrics server listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		log.Printf("metrics server listening on %s", addr)
+		errCh <- server.ListenAndServe()
+	}()
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case <-sigCtx.Done():
+		log.Printf("shutdown signal received")
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+		if err := server.Close(); err != nil {
+			log.Printf("server close failed: %v", err)
+		}
+	}
+
+	log.Printf("server stopped")
 }
