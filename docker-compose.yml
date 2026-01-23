@@ -5,6 +5,19 @@ services:
       - .env
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    
+  db-backup:
+    image: postgres:16
+    env_file:
+      - .env
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+      - ./ops/backup/backup.sh:/backup.sh:ro
+    command: ["bash", "/backup.sh"]
 
   redis:
     image: redis:latest
@@ -54,6 +67,11 @@ services:
       - DATABASE_URL=postgres://app:app@db:5432/crypto?sslmode=disable
       - TICKERS=${TICKERS}
       - WINDOW_SECONDS=300
+      - MAX_LAG_SECONDS=120
+      - MIN_TICKS_IN_WINDOW=4
     depends_on:
       - db
     restart: unless-stopped
+
+volumes:
+  pgdata:
